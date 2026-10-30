@@ -116,6 +116,26 @@ if(JUCE_ADDED)
     else()
 	    message(STATUS "Patch already applied to JUCE. Skipping patch step.")
     endif()
+
+    # macOS desktop build: keep AppKit text-input calls on the main thread (see patch file).
+    if(APPLE)
+        set(MAC_PATCH_FLAG_FILE "${CMAKE_BINARY_DIR}/juce_mac_patch_applied.flag")
+        if(NOT EXISTS ${MAC_PATCH_FLAG_FILE})
+            execute_process(
+                COMMAND git apply ${CMAKE_SOURCE_DIR}/patch/juce_mac_textinput_mainthread.patch
+                WORKING_DIRECTORY ${JUCE_SOURCE_DIR}
+                RESULT_VARIABLE mac_patch_result
+            )
+            if(mac_patch_result)
+                message(FATAL_ERROR "Failed to apply macOS patch to JUCE: ${mac_patch_result}")
+            else()
+                message(STATUS "macOS patch applied successfully to JUCE.")
+                file(WRITE ${MAC_PATCH_FLAG_FILE} "JUCE macOS patch applied")
+            endif()
+        else()
+            message(STATUS "macOS patch already applied to JUCE. Skipping patch step.")
+        endif()
+    endif()
 endif()
 
 # Add JUCE directory...

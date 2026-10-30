@@ -1,0 +1,73 @@
+diff --git a/modules/juce_gui_basics/native/juce_NSViewComponentPeer_mac.mm b/modules/juce_gui_basics/native/juce_NSViewComponentPeer_mac.mm
+index cdf7c363ee..4fdbf7cfc8 100644
+--- a/modules/juce_gui_basics/native/juce_NSViewComponentPeer_mac.mm
++++ b/modules/juce_gui_basics/native/juce_NSViewComponentPeer_mac.mm
+@@ -596,6 +596,20 @@ bool setAlwaysOnTop (bool alwaysOnTop) override
+ 
+     void toFront (bool makeActiveWindow) override
+     {
++        if (! MessageManager::getInstance()->isThisTheMessageThread())
++        {
++            Component::SafePointer<Component> safeComponent (&component);
++
++            MessageManager::callAsync ([safeComponent, makeActiveWindow]
++            {
++                if (safeComponent != nullptr)
++                    if (auto* peer = safeComponent->getPeer())
++                        peer->toFront (makeActiveWindow);
++            });
++
++            return;
++        }
++
+         if (isSharedWindow)
+         {
+             NSView* superview = [view superview];
+@@ -1562,6 +1576,22 @@ bool isFocused() const override
+ 
+     void grabFocus() override
+     {
++        // See closeInputMethodContext(): NSWindow key/first-responder changes must happen
++        // on the main thread ("Must only be used from the main thread" trap otherwise).
++        if (! MessageManager::getInstance()->isThisTheMessageThread())
++        {
++            Component::SafePointer<Component> safeComponent (&component);
++
++            MessageManager::callAsync ([safeComponent]
++            {
++                if (safeComponent != nullptr)
++                    if (auto* peer = safeComponent->getPeer())
++                        peer->grabFocus();
++            });
++
++            return;
++        }
++
+         if (window != nil)
+         {
+             if (! inBecomeKeyWindow && [window canBecomeKeyWindow])
+@@ -1579,6 +1609,24 @@ void closeInputMethodContext() override
+     {
+         stringBeingComposed.clear();
+ 
++        // AppKit requires NSTextInputContext calls on the main thread. JUCE lets other
++        // threads change component focus while holding the MessageManagerLock, and on
++        // macOS 15+ that trips a dispatch_assert_queue in HIToolbox (SIGTRAP). Hop to
++        // the message thread in that case instead of crashing.
++        if (! MessageManager::getInstance()->isThisTheMessageThread())
++        {
++            Component::SafePointer<Component> safeComponent (&component);
++
++            MessageManager::callAsync ([safeComponent]
++            {
++                if (safeComponent != nullptr)
++                    if (auto* peer = safeComponent->getPeer())
++                        peer->closeInputMethodContext();
++            });
++
++            return;
++        }
++
+         if (const auto* inputContext = [view inputContext])
+             [inputContext discardMarkedText];
+     }

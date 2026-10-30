@@ -1,5 +1,13 @@
 #include "../Board/CHardwareTimer.h"
 
+#ifdef __APPLE__
+#include <pthread.h>
+#include <sched.h>
+#include <cerrno>
+#include <cstring>
+#include <iostream>
+#endif
+
 #ifdef __linux__
 #include <climits>
 #define SEC_TO_NSEC_SCALER 1000000000
@@ -88,6 +96,15 @@ bool CHardwareTimer::start(const uint16_t intervalus)
     // Create and start the timer thread
     _thread = std::thread(&CHardwareTimer::hiResTimerThread, this);
     _thread.detach();
+#elif defined __APPLE__
+    _nextExpiry = std::chrono::steady_clock::now() + std::chrono::microseconds(_intervalus);
+    if (_running)
+    {
+        _activeCB = true; // thread keeps running, just re-arm the callback
+        return true;
+    }
+    _thread = std::thread(&CHardwareTimer::posixTimerThread, this);
+    _thread.detach();
 #endif
      _running = true;
     _activeCB = true;
@@ -132,6 +149,8 @@ bool CHardwareTimer::changeInterval(const uint16_t intervalus)
         DBG("_intervalus :" + String(_intervalus));
         //printf ("Change : Next expiry %llu : %llu\n", _timepoint.tv_sec, _timepoint.tv_nsec);
         //std::cout << _intervalus << std::endl;;
+#elif defined __APPLE__
+        _nextExpiry = std::chrono::steady_clock::now() + std::chrono::microseconds(_intervalus);
 #endif
     }
     return true;
@@ -250,3 +269,47 @@ void CHardwareTimer::hiResTimerThread(void)
 }
 
 #endif /* _WIN32 */
+
+#ifdef __APPLE__
+// macOS has neither the Linux SCHED_FIFO loop nor the Windows QueryPerformanceCounter
+// thread above, so without this the sequencer clock never ticked on desktop Macs.
+// A steady_clock thread sleeps until shortly before the next tick, then spins.
+void CHardwareTimer::posixTimerThread(void)
+{
+    using namespace std::chrono;
+
+    // Ask for a high scheduling priority; failure only loosens the timing.
+    sched_param param {};
+    const int policy = SCHED_RR;
+    param.sched_priority = sched_get_priority_max(policy);
+    if (pthread_setschedparam(pthread_self(), policy, &param) != 0)
+        std::cerr << "CHardwareTimer: pthread_setschedparam failed: " << strerror(errno) << std::endl;
+
+    while (_running)
+    {
+        if (!_activeCB)
+        {
+            std::this_thread::sleep_for(milliseconds(1));
+            continue;
+        }
+
+        const auto now = steady_clock::now();
+        if (now >= _nextExpiry)
+        {
+            _nextExpiry += microseconds(_intervalus);
+            if (_nextExpiry < now) // fell far behind (e.g. after system sleep): resync instead of bursting
+                _nextExpiry = now + microseconds(_intervalus);
+            if (_callback)
+                _callback(_context);
+        }
+        else
+        {
+            const auto remaining = _nextExpiry - now;
+            if (remaining > microseconds(300))
+                std::this_thread::sleep_for(remaining - microseconds(200));
+            else
+                std::this_thread::yield();
+        }
+    }
+}
+#endif /* __APPLE__ */

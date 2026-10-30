@@ -891,7 +891,12 @@ void FrontPannelManager::run()
 			continue;
 		}
 		if (DataToProcess < 4)
+		{
+#if !defined FP_UART_LINUX && !defined FP_REMOTE_CLIENT_RECIVE && !defined FP_REMOTE_CLIENT_RECIVE_WIN
+			wait(10); // desktop build without MCU: nothing will arrive, do not spin
+#endif
 			continue;
+		}
 
 		SysMessage _sysMessage;
 		_sysMessage.Direction = DIRECTION_IN;
@@ -1351,6 +1356,12 @@ void FrontPannelManager::FrontPannelExternalReadThreadFunction(void)
 				}
 			}//while loop
 		}
+#endif
+#if !defined FP_UART_LINUX && !defined FP_TEST_KEYBRD && !defined FP_REMOTE_CLIENT_RECIVE && !defined FP_REMOTE_CLIENT_RECIVE_WIN
+		// No front-panel input source is compiled in (desktop build without MCU UART).
+		// Idle instead of spinning: an empty infinite loop burns a core and clang may
+		// treat it as undefined behaviour and emit a trap (SIGTRAP on macOS).
+		FrontPannelExternalReadThread.delayMs(FRONT_PANEL_THREAD_WAIT_1_SEC);
 #endif
 	}
 }
@@ -2626,8 +2637,11 @@ void FrontPannelManager::getIntStorageStatus()
 {
 #if defined FP_UART_LINUX
 	auto intStorage = fs::space("/data/ignite/");
-#else
+#elif defined _WIN32
 	auto intStorage = fs::space("C:/");
+#else
+	std::error_code ec; // macOS/Linux desktop: root volume; non-throwing overload (the throwing one aborted the app)
+	auto intStorage = fs::space("/", ec);
 #endif
 	intTotalSize = static_cast<int>((intStorage.capacity / (1024 * 1024)));
 	intFreeSize = static_cast<int>((intStorage.free / (1024 * 1024)));
@@ -2662,8 +2676,11 @@ void FrontPannelManager::getUsbStorageStatus()
 	{
 #if defined FP_UART_LINUX
 		auto usbStorage = fs::space("/mnt/flash/");
-#else
+#elif defined _WIN32
 		auto usbStorage = fs::space("C:/");
+#else
+		std::error_code ec;
+		auto usbStorage = fs::space("/Volumes", ec);
 #endif
 		usbTotalSize = static_cast<int>((usbStorage.capacity / (1024 * 1024)));
 		usbFreeSize = static_cast<int>((usbStorage.free / (1024 * 1024)));
