@@ -518,6 +518,12 @@ void SongManager::init_tsf()
 {
 	_songTSf = tsf_load_filename(SOUND_FONT_FILE);
 	tsf* sf = static_cast<tsf*>(_songTSf);
+	// The SoundFont is not part of the open-source release. Start without internal sounds instead of crashing.
+	if (sf == nullptr)
+	{
+		DBG("SoundFont not found: " << SOUND_FONT_FILE << ", starting without internal sounds");
+		return;
+	}
 	tsf_set_output(sf, TSF_MONO, INTERNAL_AUDIO_SAMPLE_RATE, 0);
 	tsf_set_max_voices(sf, 8);
 	tsf_channel_set_volume(sf, 0, 0.9f);
