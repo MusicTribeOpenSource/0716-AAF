@@ -3,6 +3,18 @@
 #include <unordered_map>
 #include "anytype.h"
 #include "Firmware/Application/Model/MCUInterfaceParams.h"
+#include <cstdlib>
+
+namespace Ignite
+{
+	/* Desktop debugging aid: set IGNITE_TRACE in the environment to make the engine
+	   print its parameter traffic, play/audio events and clock timing to stdout. */
+	inline bool isTraceEnabled()
+	{
+		static const bool enabled = (std::getenv("IGNITE_TRACE") != nullptr);
+		return enabled;
+	}
+}
 
 /* Enable to work with our own 20ms timer, in case we don't want to use juce timer
 	Will be useful when we don't want to use Juce audio path and direcly play using platform (Windows/Linux) apis 

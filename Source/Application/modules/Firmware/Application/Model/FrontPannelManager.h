@@ -25,7 +25,7 @@
 //#define FP_TEST_KEYBRD              // uncomment Enable/Disable Key Test code
 //#define FP_REMOTE_CLIENT_RECIVE_WIN // Recive from script or device based on IP
 #elif __APPLE__
-//
+// FP_TEST_KEYBRD (keyboard/mouse front-panel simulator) comes from the IGNITE_KEY_SIMULATOR CMake option
 #else //linux --- Remote Controll/Debug
 //#define FP_SIM_LINUX_REMOTE_SERVER // This config Device as server, This must be enabled to use below
 //#define FP_SIM_LINUX_REMOTE_SEND	 // Device will send the MCU inputs to connected client - MCU means Front pannel + MIDI

@@ -38,6 +38,11 @@ namespace Ignite
             std::thread _thread;
 			void hiResTimerThread(void);
 #endif
+#ifdef __APPLE__
+            std::thread _thread;
+            void posixTimerThread(void);
+            std::chrono::steady_clock::time_point _nextExpiry;
+#endif
             uint32_t _intervalus = 0;
             HardwareTimerCb _callback;
             void* _context;

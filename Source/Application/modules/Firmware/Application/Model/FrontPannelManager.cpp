@@ -109,13 +109,36 @@ public:
 		Component::addKeyListener(this);
 	};
 	~FPKeys();
+	// LED position -> front panel key parameter (FrontPannelLed::KetToLedPositionMapping)
+	void setKeyMap(const uint8_t* ledToKeyMap) { ledToKey = ledToKeyMap; }
+	// Thread-safe queueing: keyPressed/onClick run on the message thread, getKey on the read thread
+	void pushMessage(const SysMessage& msg)
+	{
+		std::lock_guard<std::mutex> lock(queueMutex);
+		sysMessageList.push_back(msg);
+	}
+	// Clicking an LED box presses the key it belongs to (shift-click = reverse step for rotaries)
+	void queueKeyPressForLed(int ledIndex)
+	{
+		if (ledToKey == nullptr || ledIndex < 0 || ledIndex >= 61 || ledToKey[ledIndex] == 0)
+			return;
+		SysMessage _sysMessage = { 0, };
+		_sysMessage.Header = SYS_KEY_MSG;
+		_sysMessage.Direction = DIRECTION_IN;
+		_sysMessage.Id = ledToKey[ledIndex];
+		_sysMessage.Data[0] = juce::ModifierKeys::currentModifiers.isShiftDown() ? 2 : 1;
+		pushMessage(_sysMessage);
+		readwait = false;
+		FPInfo->setText("Clicked: " + LedDsp1_string[ledIndex], juce::dontSendNotification);
+		FPInfo->setColour(juce::Label::outlineColourId, Colours::darkblue);
+	}
 	int SetKeys()
 	{
 		addAndMakeVisible(FPInfo = new Label);
 		FPInfo->setText("Use mapped keys from Keyboard", juce::dontSendNotification);
 		FPInfo->setFont(juce::Font(16.0f, juce::Font::bold));
 		FPInfo->setColour(juce::Label::textColourId, Colours::black);
-		FPInfo->setBounds(10, 10, 400, 50);
+		FPInfo->setBounds(10, 10, 600, 30);
 
 		int j = 0, k = 1;
 		for (int i = 0; i < 61; i++)
@@ -124,10 +147,12 @@ public:
 			addAndMakeVisible(_toggleButtonArray[i] = new juce::ToggleButton);
 			_toggleButtonArray[i]->setButtonText(LedDsp1_string[i]);
 			_toggleButtonArray[i]->setToggleState(_toggleButtonArrayVal[i], false);
-			_toggleButtonArray[i]->setBounds(10 * k, 50 + j, 400, 50);
+			_toggleButtonArray[i]->setBounds(10 * k, 50 + j, 78, 20); // match the 80 px column / 20 px row pitch, no overlap
 			_toggleButtonArray[i]->setColour(juce::ToggleButton::textColourId, juce::Colours::black);
 			_toggleButtonArray[i]->setColour(juce::ToggleButton::tickColourId, juce::Colours::darkred);
 			_toggleButtonArray[i]->setColour(juce::ToggleButton::tickDisabledColourId, juce::Colours::black);
+			_toggleButtonArray[i]->setClickingTogglesState(false); // tick mirrors the LED; a click presses the key
+			_toggleButtonArray[i]->onClick = [this, i] { queueKeyPressForLed(i); };
 			k += 8;
 			// ( 7 || 2 || 10 || 16 || 16) // number of LED in each line
 			if (i == 6 || i == 18 || i == 28 || i == 44 || i == 60)
@@ -164,6 +189,7 @@ public:
 	SysMessage getKey()
 	{
 		SysMessage _SysMessage = { 0, };
+		std::lock_guard<std::mutex> lock(queueMutex);
 		if (!readwait && !sysMessageList.empty())
 		{
 			_SysMessage = (sysMessageList.front());
@@ -184,6 +210,19 @@ public:
 		keyCodeValue.KeyValue = 1;
 		readwait = true;
 		int keyTmp = key.getKeyCode();
+#ifndef _WIN32
+		// The switch below was written against Windows key codes (0x10000 | VK_*). JUCE's
+		// navigation-key constants are platform specific, so translate them here to keep
+		// the simulator usable on macOS/Linux. Alternates for keys Mac keyboards lack:
+		// Backspace = Return/back (Insert), '-' = '-' nav (Del), '+' or '=' = '+' nav (Page Down).
+		if      (keyTmp == KeyPress::leftKey)                                      keyTmp = 65575;
+		else if (keyTmp == KeyPress::rightKey)                                     keyTmp = 65573;
+		else if (keyTmp == KeyPress::downKey)                                      keyTmp = 65576;
+		else if (keyTmp == KeyPress::deleteKey    || keyTmp == '-')                 keyTmp = 65582;
+		else if (keyTmp == KeyPress::pageDownKey  || keyTmp == '+' || keyTmp == '=') keyTmp = 65570;
+		else if (keyTmp == KeyPress::insertKey    || keyTmp == KeyPress::backspaceKey) keyTmp = 65581;
+		else if (keyTmp == KeyPress::pageUpKey)                                    keyTmp = 65569;
+#endif
 		switch (keyTmp)
 		{
 		case 65575: //leftKey
@@ -316,7 +355,7 @@ public:
 			_sysMessage.Id = 0;//Port ID
 			_sysMessage.size = 1;
 			_sysMessage.Data[0] = 0xF8;
-			sysMessageList.push_back(_sysMessage); //Press
+			pushMessage(_sysMessage); //Press
 		}
 		case 91:// [
 		{
@@ -328,27 +367,27 @@ public:
 			_sysMessage.Data[0] = 1;
 
 			_sysMessage.Id = (paramId_t)FrontPannelParam::paramKey_SONG;
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 
 			_sysMessage.Id = TEST_DELAY_ID; // delay 2+ sec
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 
 			_sysMessage.Id = (paramId_t)FrontPannelParam::paramKey_SONG;
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 
 			_sysMessage.Id = TEST_DELAY_ID; // delay 2+ sec
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 
 			_sysMessage.Id = TEST_DELAY_ID; // delay 2+ sec // nested delay for 4+ sec
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 
 			_sysMessage.Id = (paramId_t)FrontPannelParam::paramKey_SCENE;
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 			_sysMessage.Id = TEST_DELAY_ID; // delay 2+ sec
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 
 			_sysMessage.Id = (paramId_t)FrontPannelParam::paramKey_TRACK;
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 		}
 		break;
 		case 70://f
@@ -394,7 +433,7 @@ public:
 			_sysMessage.Direction = DIRECTION_IN;
 			_sysMessage.Id = keyCodeValue.KeyParam;
 			_sysMessage.Data[0] = keyCodeValue.KeyValue;
-			sysMessageList.push_back(_sysMessage);
+			pushMessage(_sysMessage);
 
 
 			FPInfo->setText("Use mapped keys from Keyboard : Pressed Valid Key", juce::dontSendNotification);
@@ -430,6 +469,8 @@ private:
 	Label* FPInfo;
 	Label* FPLog;
 	std::list<SysMessage> sysMessageList;
+	std::mutex queueMutex;
+	const uint8_t* ledToKey = nullptr;
 };
 FPKeys::~FPKeys()
 {}
@@ -441,6 +482,7 @@ void FrontPannelManager::handleCommandMessage(int id)
 	{
 		fpKeys = new FPKeys;
 		fpKeys->SetKeys();
+		fpKeys->setKeyMap(FpLedHandler->KetToLedPositionMapping);
 	}
 	else if (id == 2)
 	{
@@ -891,7 +933,12 @@ void FrontPannelManager::run()
 			continue;
 		}
 		if (DataToProcess < 4)
+		{
+#if !defined FP_UART_LINUX && !defined FP_REMOTE_CLIENT_RECIVE && !defined FP_REMOTE_CLIENT_RECIVE_WIN
+			wait(10); // desktop build without MCU: nothing will arrive, do not spin
+#endif
 			continue;
+		}
 
 		SysMessage _sysMessage;
 		_sysMessage.Direction = DIRECTION_IN;
@@ -1333,7 +1380,7 @@ void FrontPannelManager::FrontPannelExternalReadThreadFunction(void)
 					FrontPannelExternalReadThread.delayMs(500);
 					continue;
 				}
-				FrontPannelExternalReadThread.delayMs(1000);
+				FrontPannelExternalReadThread.delayMs(20);
 				sysMessage = fpKeys->getKey();
 
 				if (sysMessage.Id == TEST_DELAY_ID) // internal to insert delay for 2 sec for test
@@ -1351,6 +1398,12 @@ void FrontPannelManager::FrontPannelExternalReadThreadFunction(void)
 				}
 			}//while loop
 		}
+#endif
+#if !defined FP_UART_LINUX && !defined FP_TEST_KEYBRD && !defined FP_REMOTE_CLIENT_RECIVE && !defined FP_REMOTE_CLIENT_RECIVE_WIN
+		// No front-panel input source is compiled in (desktop build without MCU UART).
+		// Idle instead of spinning: an empty infinite loop burns a core and clang may
+		// treat it as undefined behaviour and emit a trap (SIGTRAP on macOS).
+		FrontPannelExternalReadThread.delayMs(FRONT_PANEL_THREAD_WAIT_1_SEC);
 #endif
 	}
 }
@@ -2626,8 +2679,11 @@ void FrontPannelManager::getIntStorageStatus()
 {
 #if defined FP_UART_LINUX
 	auto intStorage = fs::space("/data/ignite/");
-#else
+#elif defined _WIN32
 	auto intStorage = fs::space("C:/");
+#else
+	std::error_code ec; // macOS/Linux desktop: root volume; non-throwing overload (the throwing one aborted the app)
+	auto intStorage = fs::space("/", ec);
 #endif
 	intTotalSize = static_cast<int>((intStorage.capacity / (1024 * 1024)));
 	intFreeSize = static_cast<int>((intStorage.free / (1024 * 1024)));
@@ -2662,8 +2718,11 @@ void FrontPannelManager::getUsbStorageStatus()
 	{
 #if defined FP_UART_LINUX
 		auto usbStorage = fs::space("/mnt/flash/");
-#else
+#elif defined _WIN32
 		auto usbStorage = fs::space("C:/");
+#else
+		std::error_code ec;
+		auto usbStorage = fs::space("/Volumes", ec);
 #endif
 		usbTotalSize = static_cast<int>((usbStorage.capacity / (1024 * 1024)));
 		usbFreeSize = static_cast<int>((usbStorage.free / (1024 * 1024)));

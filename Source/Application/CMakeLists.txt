@@ -19,6 +19,18 @@ if(USE_VALUE_TREE_DEBUGGER)
   add_definitions(-DUSE_VALUE_TREE_DEBUGGER=0)
 endif()
 
+# Keyboard/mouse front-panel simulator for desktop builds without the MCU (FP_TEST_KEYBRD).
+# Default on for macOS, where there is no other front-panel input path; opt in elsewhere.
+if(APPLE)
+    set(IGNITE_KEY_SIMULATOR_DEFAULT ON)
+else()
+    set(IGNITE_KEY_SIMULATOR_DEFAULT OFF)
+endif()
+option(IGNITE_KEY_SIMULATOR "Build the keyboard/mouse front-panel key simulator (desktop only)" ${IGNITE_KEY_SIMULATOR_DEFAULT})
+if(IGNITE_KEY_SIMULATOR)
+    add_definitions(-DFP_TEST_KEYBRD=1)
+endif()
+
 set(ENABLE_HARDWARE_TEST TRUE)
 
 if(ENABLE_HARDWARE_TEST)
@@ -115,6 +127,26 @@ if(JUCE_ADDED)
 	    endif()
     else()
 	    message(STATUS "Patch already applied to JUCE. Skipping patch step.")
+    endif()
+
+    # macOS desktop build: keep AppKit text-input calls on the main thread (see patch file).
+    if(APPLE)
+        set(MAC_PATCH_FLAG_FILE "${CMAKE_BINARY_DIR}/juce_mac_patch_applied.flag")
+        if(NOT EXISTS ${MAC_PATCH_FLAG_FILE})
+            execute_process(
+                COMMAND git apply ${CMAKE_SOURCE_DIR}/patch/juce_mac_textinput_mainthread.patch
+                WORKING_DIRECTORY ${JUCE_SOURCE_DIR}
+                RESULT_VARIABLE mac_patch_result
+            )
+            if(mac_patch_result)
+                message(FATAL_ERROR "Failed to apply macOS patch to JUCE: ${mac_patch_result}")
+            else()
+                message(STATUS "macOS patch applied successfully to JUCE.")
+                file(WRITE ${MAC_PATCH_FLAG_FILE} "JUCE macOS patch applied")
+            endif()
+        else()
+            message(STATUS "macOS patch already applied to JUCE. Skipping patch step.")
+        endif()
     endif()
 endif()
 
