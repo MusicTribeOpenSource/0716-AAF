@@ -625,7 +625,7 @@ SongManager::SongManager(IParamChangeListener* listener, IgniteEngine& model) : 
 	openMidiInterfaces();
 	for (uint8_t i = 0; i < AUDITIONING_MAX_PORT; i++)
 	{
-		std::string TrackName = "AuditioningTrack" + i;
+		std::string TrackName = "AuditioningTrack" + std::to_string(i);
 		AuditioningTrack[i] = std::make_unique<Track>((int8_t)(0), TrackName, false, this);//Track to play internal sound for Midi in
 		AuditioningTrack[i]->AuditioningTrackInit();
 		isAuditioningTrackEnabled[i] = false;

@@ -23,6 +23,9 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
+On Linux, install JUCE's usual Linux build dependencies (ALSA, X11, freetype and so on) and the wireless
+tools headers used by the Wi-Fi code (`libiw-dev` on Debian and Ubuntu, which provides `iwlib.h`).
+
 The app is written to `build/apps/ignite/Ignite_artefacts/<Config>/`, together with `assets/`, which it
 loads at runtime. The General MIDI SoundFont is not included; see [sf/README.md](sf/README.md).
 
