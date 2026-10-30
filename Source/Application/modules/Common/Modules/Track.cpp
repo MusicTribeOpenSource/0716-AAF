@@ -2672,6 +2672,8 @@ void Track::AuditioningTrackInit(void)
 		_trackSf = tsf_copy(static_cast<tsf*>(_songManager->get_tsf_instance()));
 	/* TSF init */
 	//_trackSf = tsf_load_filename(SOUND_FONT_FILE);
+	if (_trackSf == nullptr)
+		return;
 	tsf* sf = static_cast<tsf*>(_trackSf);
 	tsf_set_output(sf, TSF_MONO, INTERNAL_AUDIO_SAMPLE_RATE, 0); //sample rate
 	tsf_set_max_voices(sf, 8);// 8 note polyphony
@@ -2680,16 +2682,22 @@ void Track::AuditioningTrackInit(void)
 }
 void Track::AuditioningTrackSetPreset(int presetindex)
 {
+	if (_trackSf == nullptr)
+		return;
 	tsf_channel_set_presetindex(static_cast<tsf*>(_trackSf), 0, presetindex);
 }
 void Track::AuditioningTrackClear(void)
 {
+	if (_trackSf == nullptr)
+		return;
 	_noteOnList.clear();
 	tsf_channel_note_off_all(static_cast<tsf*>(_trackSf), 0);
 }
 
 void Track::sfInit(void)
 {
+	if (_trackSf == nullptr)
+		return;
 	tsf* sf = static_cast<tsf*>(_trackSf);
 	tsf_set_output(sf, TSF_MONO, INTERNAL_AUDIO_SAMPLE_RATE, 0); //sample rate
 	tsf_set_max_voices(sf, 8);// 8 note polyphony
@@ -2719,11 +2727,15 @@ void Track::sfLoad(void)
 
 void Track::sfNoteOn(uint8_t channel, uint8_t key, float velocity)
 {
+	if (_trackSf == nullptr)
+		return;
 	tsf_channel_note_on(static_cast<tsf*>(_trackSf), channel, key, velocity);
 }
 
 void Track::sfNoteOff(uint8_t channel, uint8_t key)
 {
+	if (_trackSf == nullptr)
+		return;
 	tsf_channel_note_off(static_cast<tsf*>(_trackSf), channel, key);
 }
 
@@ -2836,6 +2848,8 @@ void Track::sfSetProgram(void)
 
 void Track::sfChangeProgram(void)
 {
+	if (_trackSf == nullptr)
+		return;
 	tsf_channel_note_off_all(static_cast<tsf*>(_trackSf), 0);
 	sfSetProgram();
 }
