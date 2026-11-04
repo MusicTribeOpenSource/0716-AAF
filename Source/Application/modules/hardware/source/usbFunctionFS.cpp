@@ -1147,7 +1147,7 @@ int USBFunctionFS::handleCreateDirectoryCommand(const char* buff,FSdata fs,int t
 				DBG("Failed to create directory: ");
 			}
 		}
-		catch (const filesystem::filesystem_error& e) {
+		catch (const filesystem::filesystem_error&) {
 			DBG("Filesystem error: ");
 		}
 	}

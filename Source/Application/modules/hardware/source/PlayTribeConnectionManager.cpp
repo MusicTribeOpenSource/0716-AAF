@@ -350,7 +350,7 @@ void PlayTribeConnectionManager::PlayTribeExternalReadThreadFunction(void)
 {
 	PlayTribeExternalReadThread.delayMs(PLAYTIBE_THREAD_INIT_WAIT); //Wait till Init Complete
 	const int bufferSize = 256;
-	char szBuff[bufferSize] = { 0 };
+	[[maybe_unused]] char szBuff[bufferSize] = { 0 };
 	while (!shouldExitReadThread)
 	{
 #if defined( __linux__ ) || defined( __linux ) || defined( linux )
