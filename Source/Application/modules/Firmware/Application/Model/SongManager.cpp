@@ -3234,26 +3234,32 @@ void SongManager::sendTrackValuesAtSceneLevel(void)
 * All USB MIDI and Virtual MIDI port messages will be handled here.
 * DIN MIDI port messages will be first received at the MCU and then routed to IMX
 */
+static std::string midiDeviceMatchName (const juce::String& deviceName); // defined with openMidiInterfaces
+
 void IgniteMidi::handleIncomingMidiMessage (MidiInput* source, const MidiMessage& message)
 {
 	if (_PIgniteEngine != nullptr)		//Don't receive the midi message until IgniteEngine is loaded
 	{
+		// The port lookups below compare against the Ignite port names (f_midi-0 ...); on Windows the
+		// device name carries a trailing device number, so use the same matching name as when the port was opened.
+		const std::string srcPortName = midiDeviceMatchName (source->getName ());
+
 		//check if src message port is enabled for midi remote control
-		if (_PSongMgr->midiRemoteControlEnabled (source->getName ()) == true)
+		if (_PSongMgr->midiRemoteControlEnabled (srcPortName) == true)
 		{
 			_PSongMgr->handleMidiRemoteControlMessage (message);
 		}
-		else if (_PSongMgr->midiTransposeControlEnabled (source->getName ()) == true)
+		else if (_PSongMgr->midiTransposeControlEnabled (srcPortName) == true)
 		{
 			_PSongMgr->handleMidiTransposeControlMessage (message);
 		}
-		else if (_PSongMgr->midiMachineControlEnabled (source->getName ()) == true)
+		else if (_PSongMgr->midiMachineControlEnabled (srcPortName) == true)
 		{
 			_PSongMgr->handleMidiMachineControlMessage (message);
 		}
 		else
 		{
-			_PSongMgr->handleInMidiMessage (message, source->getName ().toStdString ());
+			_PSongMgr->handleInMidiMessage (message, srcPortName);
 		}
 	}
 }
