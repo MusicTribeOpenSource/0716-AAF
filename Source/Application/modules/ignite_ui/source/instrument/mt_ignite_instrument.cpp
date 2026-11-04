@@ -1265,6 +1265,7 @@ namespace ui
 			else
 				return false;
 		}
+		return false;
 	}
 
 	void IgniteInstruments::addMidiToUseList(const String& midiPort)
