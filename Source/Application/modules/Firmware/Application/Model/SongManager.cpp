@@ -513,15 +513,41 @@ std::map <int8_t, std::string> gMidiPortNameList =
 	//{(int8_t)IGNITE_INTERNAL_CLK, IGNITE_INTERNAL_CLK_NAME},
 };
 #include "tsf.h"
+/*
+* Where to read the SoundFont from, first match wins:
+*   1. the file named by the environment variable IGNITE_SOUNDFONT
+*   2. SOUND_FONT_FILE (the compile-time path of the target platform)
+*   3. Ignite.sf2 beside the executable
+* If none exists, SOUND_FONT_FILE is returned so the "not found" message names the default location.
+*/
+static std::string findSoundFontFile()
+{
+	const juce::String fromEnv = juce::SystemStats::getEnvironmentVariable("IGNITE_SOUNDFONT", juce::String());
+	if (fromEnv.isNotEmpty() && juce::File(fromEnv).existsAsFile())
+	{
+		return fromEnv.toStdString();
+	}
+	if (juce::File(SOUND_FONT_FILE).existsAsFile())
+	{
+		return SOUND_FONT_FILE;
+	}
+	const juce::File besideExe = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getSiblingFile("Ignite.sf2");
+	if (besideExe.existsAsFile())
+	{
+		return besideExe.getFullPathName().toStdString();
+	}
+	return SOUND_FONT_FILE;
+}
 /* init and load TSF and sound font and use the copy in all song,scene tracks */
 void SongManager::init_tsf()
 {
-	_songTSf = tsf_load_filename(SOUND_FONT_FILE);
+	const std::string soundFontPath = findSoundFontFile();
+	_songTSf = tsf_load_filename(soundFontPath.c_str());
 	tsf* sf = static_cast<tsf*>(_songTSf);
 	// The SoundFont is not part of the open-source release. Start without internal sounds instead of crashing.
 	if (sf == nullptr)
 	{
-		DBG("SoundFont not found: " << SOUND_FONT_FILE << ", starting without internal sounds");
+		DBG("SoundFont not found: " << soundFontPath << ", starting without internal sounds");
 		return;
 	}
 	tsf_set_output(sf, TSF_MONO, INTERNAL_AUDIO_SAMPLE_RATE, 0);
