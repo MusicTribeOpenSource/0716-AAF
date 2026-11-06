@@ -155,10 +155,10 @@ install(
 )
 
 # Copy assets to executable directory post generating build files...
+# $<CONFIG> covers every configuration (RelWithDebInfo, MinSizeRel, ...), not just Debug and Release.
 add_custom_command(TARGET ${PROJECT_NAME}
     POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../assets ${CMAKE_CURRENT_BINARY_DIR}/Ignite_artefacts/Debug/assets
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../assets ${CMAKE_CURRENT_BINARY_DIR}/Ignite_artefacts/Release/assets
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../../assets ${CMAKE_CURRENT_BINARY_DIR}/Ignite_artefacts/$<CONFIG>/assets
 )
 
 # The SoundFont is not part of the open-source release; copy it only if one was supplied.
