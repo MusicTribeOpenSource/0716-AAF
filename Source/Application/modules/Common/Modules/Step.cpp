@@ -41,6 +41,7 @@ Step::Step (Pattern* pat, int16_t id, uint8_t note, float length, uint8_t veloci
 	_stepData = new (StepData);
 	*_stepData = { 0 };
 	_stepData->stepId = id;
+	_pattern = pat;
 }
 
 Step::Step (Pattern* pat, StepData& stepData)
@@ -48,6 +49,7 @@ Step::Step (Pattern* pat, StepData& stepData)
 	_stepData = new (StepData);
 	*_stepData = { 0 };
 	*_stepData = stepData;
+	_pattern = pat;
 }
 
 /*
