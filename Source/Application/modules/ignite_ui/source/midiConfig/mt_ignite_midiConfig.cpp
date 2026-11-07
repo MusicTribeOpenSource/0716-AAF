@@ -22,6 +22,18 @@ using namespace Ignite;
 
 namespace ui
 {
+	// midiPortList (DIN + USB only) is a display-order subset of portList (DIN, CV, USB),
+	// which is kept in sync with midiDataIOPorts and is what the engine indexes MidiCnfg by.
+	// Map each displayed port back to its real engine port id instead of reusing the display loop index.
+	static uint8_t midiPortEngineId(const juce::String& name)
+	{
+		for (uint8_t idx = 0; idx < mt::Ignite::portList.size(); ++idx)
+		{
+			if (mt::Ignite::portList[idx] == name)
+				return idx;
+		}
+		return 0;
+	}
 
 	////////////////////////////////////////////////
 	//   Class: Ignite MidiConfig
@@ -127,7 +139,7 @@ namespace ui
 		AppOptions::GetOptionsInstance()->changebtnstate(ui::IgniteControlOptions::MIDI_SONG, true);
 		for (uint8_t i = 0; i < mt::Ignite::midiPortList.size(); i++)
 		{
-			auto tmpPort = new IgniteMidiPortConfig(mt::Ignite::midiPortList[i], i);
+			auto tmpPort = new IgniteMidiPortConfig(mt::Ignite::midiPortList[i], midiPortEngineId(mt::Ignite::midiPortList[i]));
 			addChildComponent(tmpPort);
 			tmpPort->setBounds(5, 60 * i, 1004, 60);
 			container.addAndMakeVisible(tmpPort);
@@ -155,7 +167,7 @@ namespace ui
 		midiPorts.clear();
 		for (uint8_t i = 0; i < mt::Ignite::midiPortList.size(); i++)
 		{
-			auto tmpPort = new IgniteMidiPortConfig(mt::Ignite::midiPortList[i], i);
+			auto tmpPort = new IgniteMidiPortConfig(mt::Ignite::midiPortList[i], midiPortEngineId(mt::Ignite::midiPortList[i]));
 			addChildComponent(tmpPort);
 			tmpPort->setBounds(5, 60 * i, 1004, 60);
 			container.addAndMakeVisible(tmpPort);
@@ -210,7 +222,7 @@ namespace ui
 		if (buttonThatWasClicked == &helpInfoButton)
 		{
 			CommonHelpInfoPopUp* ptr = new CommonHelpInfoPopUp("Thru Mode", 604, 360);
-			String helpInfo = "Soft Thru type selection\n\nloopback - To same midi port\n<thru-port> thru channel - To selected port, but same channel\n<thru port> <thru channel> - To selected port, with selected channel";
+			String helpInfo = "Soft Thru type selection\n\nloopback - To same midi port\n<thru-port> thru channel - To selected port, but same channel\n<thru port> Only -> <thru channel> - To selected port, only the selected channel, unchanged\n<thru port> All -> <thru channel> - To selected port, every incoming channel remapped to the selected channel";
 			ptr->setInfoText(helpInfo);
 			ptr->show();
 		}
@@ -819,20 +831,20 @@ namespace ui
 		DrawImage = (softThru.getSelected() != softThruOff ? (softThru.getFocusState() ? midiLargeActiveHover : midiLargeActive) : (softThru.getFocusState() ? midiLargeHover : midiLargeDefault));
 		g.drawImage(DrawImage, ui::Rectangle<float>{410, 12, 210, 32});
 
-		if (softThruState == (uint8_t)SoftThruType::differentPortSameChannel || softThruState == (uint8_t)SoftThruType::differentChannelDifferentPort)
+		if (softThruState == (uint8_t)SoftThruType::differentPortSameChannel || softThruState == (uint8_t)SoftThruType::differentChannelDifferentPort || softThruState == (uint8_t)SoftThruType::allChannelsToDestChannel)
 			midiPorts.setValueColour(Theme::Instance().getColour(neutralWhite));
 		else
 			midiPorts.setValueColour(ui::Theme::Instance().getColour(customGrey5).withAlpha((float)1.0f));
 
-		DrawImage = (((softThruState == (uint8_t)SoftThruType::differentPortSameChannel) || (softThruState == (uint8_t)SoftThruType::differentChannelDifferentPort)) ? (midiPorts.getFocusState() ? midiSmallDefaultHover : midiSmallDefault) : midiSmallDisabled);
+		DrawImage = (((softThruState == (uint8_t)SoftThruType::differentPortSameChannel) || (softThruState == (uint8_t)SoftThruType::differentChannelDifferentPort) || (softThruState == (uint8_t)SoftThruType::allChannelsToDestChannel)) ? (midiPorts.getFocusState() ? midiSmallDefaultHover : midiSmallDefault) : midiSmallDisabled);
 		g.drawImage(DrawImage, ui::Rectangle<float>{680, 12, 120, 32});
 
-		if (softThruState == (uint8_t)SoftThruType::differentChannelDifferentPort)
+		if (softThruState == (uint8_t)SoftThruType::differentChannelDifferentPort || softThruState == (uint8_t)SoftThruType::allChannelsToDestChannel)
 			midiChannel.setTextColour(Theme::Instance().getColour(neutralWhite));
 		else
 			midiChannel.setTextColour(ui::Theme::Instance().getColour(customGrey5).withAlpha((float)1.0f));
 
-		DrawImage = (softThruState == (uint8_t)SoftThruType::differentChannelDifferentPort ? (midiChannel.getFocusState() ? midiSmallDefaultHover : midiSmallDefault) : midiSmallDisabled);
+		DrawImage = ((softThruState == (uint8_t)SoftThruType::differentChannelDifferentPort || softThruState == (uint8_t)SoftThruType::allChannelsToDestChannel) ? (midiChannel.getFocusState() ? midiSmallDefaultHover : midiSmallDefault) : midiSmallDisabled);
 		g.drawImage(DrawImage, ui::Rectangle<float>{865, 12, 120, 32});
 
 		//DrawImage = (thruFts.getToggleState() ? (thruFts.isMouseOver() ? ActiveHoverImage : ActiveImage) : (thruFts.isMouseOver() ? defaultHoverImage : defaultImage));
@@ -853,6 +865,7 @@ namespace ui
 		switch (softThruState)
 		{
 		case (uint8_t)SoftThruType::differentChannelDifferentPort:
+		case (uint8_t)SoftThruType::allChannelsToDestChannel:
 
 			midiChannel.setEnabled(true);
 			midiChannel.setInterceptsMouseClicks(true, false);
