@@ -288,6 +288,9 @@ namespace ui
 				stopButton.setEnabled(false);
 				revButton.setEnabled(false);
 				updatePlayBtnState();
+				// opMode may have just changed out of AUDITION_MODE; the earlier updateRecBtnState() call above
+				// painted the record button for the stale mode (orange, clicks disabled) and nothing refreshed it.
+				updateRecBtnState();
 			}
 		}
 		else if (buttonThatWasClicked == &recButton)
