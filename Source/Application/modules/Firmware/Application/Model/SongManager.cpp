@@ -6316,11 +6316,25 @@ void SongManager::handleMidiThru(const MidiMessage& message, const std::string p
 				sendMidiExternal(msgTosend, portId);
 				break;
 
-			case SoftThruType::differentChannelDifferentPort:
-				msgTosend.setChannel(_midicnfg.destChannel);
-			case SoftThruType::differentPortSameChannel://fallthrough
+			case SoftThruType::differentPortSameChannel:
 				portId = _midicnfg.destPort;
 				sendMidiExternal(msgTosend, portId);//MCU port ID starts from 1
+				break;
+
+			case SoftThruType::differentChannelDifferentPort:
+				// "Only -> channel": filter to the configured channel; everything else is dropped.
+				if (message.getChannel() == _midicnfg.destChannel)
+				{
+					portId = _midicnfg.destPort;
+					sendMidiExternal(msgTosend, portId);
+				}
+				break;
+
+			case SoftThruType::allChannelsToDestChannel:
+				// "All -> channel": no filter, every incoming channel is remapped to destChannel.
+				msgTosend.setChannel(_midicnfg.destChannel);
+				portId = _midicnfg.destPort;
+				sendMidiExternal(msgTosend, portId);
 				break;
 
 			case SoftThruType::off:

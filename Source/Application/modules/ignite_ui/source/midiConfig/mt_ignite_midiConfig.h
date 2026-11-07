@@ -136,7 +136,7 @@ namespace ui
 		void getAssets();
 	private:
 		CommonNameLabel midiPortNumber{ "1" };
-		CommonListBox softThru{ "Thru", {"Thru Mode: Off", "loopback", "<thru port>- thru channel", "<thru port>-<thru channel>"}, 0, 1 };
+		CommonListBox softThru{ "Thru", {"Thru Mode: Off", "loopback", "<thru port>- thru channel", "<thru port> Only -> <thru channel>", "<thru port> All -> <thru channel>"}, 0, 1 };
 		//CommonToggleButton mclkSend{ "MCLK Send:Off" };
 		CommonListBox recordEnable{ "Rec Enable", {"off", "on", "on/thru"}, 0, 1 };
 		CommonToggleButton thruFts{ "Thru FTS:Off" };

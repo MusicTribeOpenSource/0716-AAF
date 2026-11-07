@@ -1801,7 +1801,8 @@ enum class SoftThruType : int8_t
 	loopBack = 1,
 	//editTrack = 2,
 	differentPortSameChannel = 2,
-	differentChannelDifferentPort = 3,
+	differentChannelDifferentPort = 3, // "Only -> channel": filter to destChannel, forward unchanged
+	allChannelsToDestChannel = 4,      // "All -> channel": forward every incoming channel, remapped to destChannel
 	//internalSound = 5,
 };
 
