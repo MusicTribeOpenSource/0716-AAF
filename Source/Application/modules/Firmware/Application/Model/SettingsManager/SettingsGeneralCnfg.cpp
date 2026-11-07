@@ -9,6 +9,15 @@
 
 using namespace Ignite;
 
+// paramAuditioningPreset1..17 cover port ids 0-16 contiguously; paramAuditioningPreset18..24 were appended later
+// (to avoid renumbering the params above them) and cover port ids 17-23, so they need their own base offset.
+static uint8_t auditioningPresetParamToPort(SettingsGeneralCnfgParam param)
+{
+	if (param >= SettingsGeneralCnfgParam::paramAuditioningPreset18)
+		return 17 + ((uint8_t)param - (uint8_t)SettingsGeneralCnfgParam::paramAuditioningPreset18);
+	return (uint8_t)param - (uint8_t)SettingsGeneralCnfgParam::paramAuditioningPreset1;
+}
+
 SettingsGeneralCnfg::SettingsGeneralCnfg (IParamChangeListener* listener, IgniteEngine& model) : paramlistener (listener), engine (model),
 Module ("SettingsGeneralCnfg", (moduleId_t)ModuleName::moduleSettingGnrlCnfg, (unsigned int)SettingsGeneralCnfgParam::paramSettingsGeneralCnfgParamMax, listener)
 {
@@ -37,6 +46,13 @@ Module ("SettingsGeneralCnfg", (moduleId_t)ModuleName::moduleSettingGnrlCnfg, (u
 	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset15, -1, 5000, PRESET_INVALID_ID);
 	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset16, -1, 5000, PRESET_INVALID_ID);
 	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset17, -1, 5000, PRESET_INVALID_ID);
+	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset18, -1, 5000, PRESET_INVALID_ID);
+	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset19, -1, 5000, PRESET_INVALID_ID);
+	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset20, -1, 5000, PRESET_INVALID_ID);
+	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset21, -1, 5000, PRESET_INVALID_ID);
+	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset22, -1, 5000, PRESET_INVALID_ID);
+	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset23, -1, 5000, PRESET_INVALID_ID);
+	AddParameter<int>((paramId_t)SettingsGeneralCnfgParam::paramAuditioningPreset24, -1, 5000, PRESET_INVALID_ID);
 	AddParameter<int8_t>((paramId_t)SettingsGeneralCnfgParam::paramSaveAll, 0, 1, 0);
 	AddParameter<bool>((paramId_t)SettingsGeneralCnfgParam::paramWifiState, false, true, false);
 	AddParameter<std::string>((paramId_t)SettingsGeneralCnfgParam::paramWifiLastConnSsid, " ", " ", " ");
@@ -173,9 +189,16 @@ std::vector<IgniteParamList> SettingsGeneralCnfg::getParamList (moduleId_t modul
 		case SettingsGeneralCnfgParam::paramAuditioningPreset15:
 		case SettingsGeneralCnfgParam::paramAuditioningPreset16:
 		case SettingsGeneralCnfgParam::paramAuditioningPreset17:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset18:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset19:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset20:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset21:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset22:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset23:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset24:
 		{
 			paramData.param = (*it).param;
-			uint8_t port = ((*it).param - (uint8_t)SettingsGeneralCnfgParam::paramAuditioningPreset1);
+			uint8_t port = auditioningPresetParamToPort((SettingsGeneralCnfgParam)(*it).param);
 			paramData.MsgValue = getAuditioningPortPreset(port);
 			retParam.push_back(paramData);
 		}
@@ -257,8 +280,15 @@ void SettingsGeneralCnfg::ParamHandler (moduleId_t moduleSrc, ParameterBase* par
 		case SettingsGeneralCnfgParam::paramAuditioningPreset15:
 		case SettingsGeneralCnfgParam::paramAuditioningPreset16:
 		case SettingsGeneralCnfgParam::paramAuditioningPreset17:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset18:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset19:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset20:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset21:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset22:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset23:
+		case SettingsGeneralCnfgParam::paramAuditioningPreset24:
 		{
-			uint8_t port = ((uint8_t)param->GetParamID() - (uint8_t)SettingsGeneralCnfgParam::paramAuditioningPreset1);
+			uint8_t port = auditioningPresetParamToPort((SettingsGeneralCnfgParam)param->GetParamID());
 			_SettingsGeneralCnfgData.auditioningPortPreset[port] = (param->getValue().get<int>());
 			engine.songManager->setAuditioningPreset(port, _SettingsGeneralCnfgData.auditioningPortPreset[port]);
 		}
