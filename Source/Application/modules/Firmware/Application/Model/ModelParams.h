@@ -124,7 +124,7 @@
 #define AUDIO_FILTER 4
 #define AUDIO_EFFECT_MAX 5
 
-#define AUDITIONING_MAX_PORT 16
+#define AUDITIONING_MAX_PORT ((uint8_t)midiDataIOPorts::maxMidiIOPorts) // must cover every real port id (DIN, CV, USB dev, USB host); was a hardcoded 16, which silently dropped USB:MIDI4-6
 #define PRESET_INVALID_ID -1
 #define MAX_NUMBER_OF_TVKNOB 24
 
@@ -433,6 +433,15 @@ namespace Ignite
 		paramSaveAll,
 		paramWifiState,
 		paramWifiLastConnSsid,
+		// Appended rather than inserted after paramAuditioningPreset17, so existing params above keep their ordinal values.
+		// Covers the rest of midiDataIOPorts (port ids 17-23: USB:MIDI5/6, USB Host 1-5) -- paramAuditioningPreset1..17 only covered ids 0-16.
+		paramAuditioningPreset18,
+		paramAuditioningPreset19,
+		paramAuditioningPreset20,
+		paramAuditioningPreset21,
+		paramAuditioningPreset22,
+		paramAuditioningPreset23,
+		paramAuditioningPreset24,
 		paramSettingsGeneralCnfgParamMax
 	};
 

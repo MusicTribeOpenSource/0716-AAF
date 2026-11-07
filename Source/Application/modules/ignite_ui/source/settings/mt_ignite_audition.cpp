@@ -22,6 +22,31 @@ using namespace Ignite;
 
 namespace ui
 {
+	// Widget slot i -> real engine port id (midiDataIOPorts). Slots 0-10 are DIN+USB device ports, named from
+	// midiPortList; slots 11-15 are the 5 USB Host ports, which have no entry in midiPortList at all.
+	static uint8_t auditionWidgetEngineId(int widgetIndex)
+	{
+		if (widgetIndex < (int)mt::Ignite::midiPortList.size())
+		{
+			const auto& name = mt::Ignite::midiPortList[widgetIndex];
+			for (uint8_t idx = 0; idx < mt::Ignite::portList.size(); ++idx)
+			{
+				if (mt::Ignite::portList[idx] == name)
+					return idx;
+			}
+			return 0;
+		}
+		return (uint8_t)midiDataIOPorts::usbHostMidi1 + (uint8_t)(widgetIndex - (int)mt::Ignite::midiPortList.size());
+	}
+
+	// Inverse of auditioningPresetParamToPort in SettingsGeneralCnfg.cpp: paramAuditioningPreset1..17 cover port ids
+	// 0-16 contiguously; 18..24 were appended later (ports 17-23) and need their own base.
+	static uint8_t auditioningPortToParam(uint8_t port)
+	{
+		if (port >= 17)
+			return (uint8_t)SettingsGeneralCnfgParam::paramAuditioningPreset18 + (port - 17);
+		return (uint8_t)SettingsGeneralCnfgParam::paramAuditioningPreset1 + port;
+	}
 
 	////////////////////////////////////////////////
 	//   Class: IgniteAuditionSettings
@@ -38,7 +63,7 @@ namespace ui
 		setSize(getWidth(), getHeight());
 		for (auto i = 0; i < 16; i++)
 		{
-			String name = " USB HOST";
+			String name = " USB HOST " + String(i - 10);
 			if(i < 11)
 				name = mt::Ignite::midiPortList[i] + " Preset";
 			auto tmplistbox = new CommonListBox(name + " Preset", 2, false);
@@ -48,17 +73,14 @@ namespace ui
 			tmplistbox->setSelected(0);
 			tmplistbox->setValueColour(Theme::Instance().getColour(customOrange));
 
-			tmplistbox->onSelectionChangedWithName = [this](int index, const String& name, const String& listBoxName)
+			tmplistbox->onSelectionChangedWithName = [this, i](int index, const String& name, const String& listBoxName)
 				{
-					auto it = std::find(mt::Ignite::midiPortList.begin(), mt::Ignite::midiPortList.end(), listBoxName.dropLastCharacters(7));
-					if (it != mt::Ignite::midiPortList.end())
-					{
-						int64 id = std::distance(mt::Ignite::midiPortList.begin(), it);
-						_PUiVirtualEngine->SetCommand((moduleId_t)ModuleName::moduleUI, (moduleId_t)ModuleName::moduleSettingGnrlCnfg, ((paramId_t)((uint8_t)SettingsGeneralCnfgParam::paramAuditioningPreset1 + id)), index - 1);
-						enableControlButton(IgniteControlOptions::SAVE, true);
-						enableControlButton(IgniteControlOptions::UNDO, true);
-						auditionConfigDataUpdated = true;
-					}
+					uint8_t port = auditionWidgetEngineId(i);
+					uint8_t paramId = auditioningPortToParam(port);
+					_PUiVirtualEngine->SetCommand((moduleId_t)ModuleName::moduleUI, (moduleId_t)ModuleName::moduleSettingGnrlCnfg, (paramId_t)paramId, index - 1);
+					enableControlButton(IgniteControlOptions::SAVE, true);
+					enableControlButton(IgniteControlOptions::UNDO, true);
+					auditionConfigDataUpdated = true;
 				};
 
 			tmplistbox->onFocusChanged = [this](bool a)
@@ -139,16 +161,16 @@ namespace ui
 	{
 		std::vector<IgniteParamList> audParams;
 		IgniteParamList params;
-		for (uint8_t port = 0; port < 16; port++)
+		for (uint8_t widgetIndex = 0; widgetIndex < 16; widgetIndex++)
 		{
-			params.param = (paramId_t)((uint8_t)SettingsGeneralCnfgParam::paramAuditioningPreset1 + port);
+			params.param = (paramId_t)auditioningPortToParam(auditionWidgetEngineId(widgetIndex));
 			audParams.push_back(params);
 		}
 
 		audParams = _PUiVirtualEngine->getParam((moduleId_t)ModuleName::moduleUI, (moduleId_t)ModuleName::moduleSettingGnrlCnfg, audParams);
 
-		for (auto port = 0; port < 16; port++)
-			midiPresets[port]->setSelected(audParams[port].MsgValue.get< int >() + 1);
+		for (auto widgetIndex = 0; widgetIndex < 16; widgetIndex++)
+			midiPresets[widgetIndex]->setSelected(audParams[widgetIndex].MsgValue.get< int >() + 1);
 	}
 
 	void IgniteAuditionSettings::resized()

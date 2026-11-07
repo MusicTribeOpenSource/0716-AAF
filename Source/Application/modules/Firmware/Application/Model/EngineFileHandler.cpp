@@ -2241,6 +2241,13 @@ FileHandlerError EngineFileHandler::UpdateSettingsGeneralCnfgData(SettingsGenera
 		DataPreset->setAttribute("auditioningPortPreset15", settingsGeneralCnfgData.auditioningPortPreset[14]);
 		DataPreset->setAttribute("auditioningPortPreset16", settingsGeneralCnfgData.auditioningPortPreset[15]);
 		DataPreset->setAttribute("auditioningPortPreset17", settingsGeneralCnfgData.auditioningPortPreset[16]);
+		DataPreset->setAttribute("auditioningPortPreset18", settingsGeneralCnfgData.auditioningPortPreset[17]);
+		DataPreset->setAttribute("auditioningPortPreset19", settingsGeneralCnfgData.auditioningPortPreset[18]);
+		DataPreset->setAttribute("auditioningPortPreset20", settingsGeneralCnfgData.auditioningPortPreset[19]);
+		DataPreset->setAttribute("auditioningPortPreset21", settingsGeneralCnfgData.auditioningPortPreset[20]);
+		DataPreset->setAttribute("auditioningPortPreset22", settingsGeneralCnfgData.auditioningPortPreset[21]);
+		DataPreset->setAttribute("auditioningPortPreset23", settingsGeneralCnfgData.auditioningPortPreset[22]);
+		DataPreset->setAttribute("auditioningPortPreset24", settingsGeneralCnfgData.auditioningPortPreset[23]);
 		DataInfo->addChildElement(DataPreset);
 
 		DataXml.addChildElement(DataInfo);
@@ -2299,6 +2306,14 @@ bool EngineFileHandler::GetGeneralCnfgDataSetting(SettingsGeneralCnfgData* setti
 					settingsGeneralCnfgData->auditioningPortPreset[14] = f->getIntAttribute("auditioningPortPreset15");
 					settingsGeneralCnfgData->auditioningPortPreset[15] = f->getIntAttribute("auditioningPortPreset16");
 					settingsGeneralCnfgData->auditioningPortPreset[16] = f->getIntAttribute("auditioningPortPreset17");
+					// Default to PRESET_INVALID_ID, not 0, since these attributes are absent from song files saved before this change.
+					settingsGeneralCnfgData->auditioningPortPreset[17] = f->getIntAttribute("auditioningPortPreset18", PRESET_INVALID_ID);
+					settingsGeneralCnfgData->auditioningPortPreset[18] = f->getIntAttribute("auditioningPortPreset19", PRESET_INVALID_ID);
+					settingsGeneralCnfgData->auditioningPortPreset[19] = f->getIntAttribute("auditioningPortPreset20", PRESET_INVALID_ID);
+					settingsGeneralCnfgData->auditioningPortPreset[20] = f->getIntAttribute("auditioningPortPreset21", PRESET_INVALID_ID);
+					settingsGeneralCnfgData->auditioningPortPreset[21] = f->getIntAttribute("auditioningPortPreset22", PRESET_INVALID_ID);
+					settingsGeneralCnfgData->auditioningPortPreset[22] = f->getIntAttribute("auditioningPortPreset23", PRESET_INVALID_ID);
+					settingsGeneralCnfgData->auditioningPortPreset[23] = f->getIntAttribute("auditioningPortPreset24", PRESET_INVALID_ID);
 				}
 			}
 			return true;
