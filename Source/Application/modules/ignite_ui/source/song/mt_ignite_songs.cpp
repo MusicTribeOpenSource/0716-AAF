@@ -848,6 +848,36 @@ namespace ui
 			auto& gSongRef = gSongs.getReference(selected);
 			if (gSongRef.sceneCreated)
 			{
+				// Query record-readiness live from the engine rather than the UI-side track_data
+				// cache: that cache is only refreshed on specific discrete events (track select,
+				// dirty-flag-gated bulk resync) and can lag the real engine-side assignment, which
+				// left this gate permanently disabled for tracks that weren't the last one selected.
+				std::vector<IgniteParamList> trackInfoParams;
+				IgniteParamList infoParam;
+				infoParam.param = (paramId_t)TrackParam::paramTrackInfoList;
+				trackInfoParams.push_back(infoParam);
+				trackInfoParams = _PUiVirtualEngine->getParam((moduleId_t)ModuleName::moduleUI, (moduleId_t)ModuleName::moduleTrack, trackInfoParams);
+
+				const size_t numParam = 8; // per-track param count returned by paramTrackInfoList
+				auto isRecordReadyForTrack = [&trackInfoParams, numParam](uint32_t trackId, bool trackDisabled) -> bool
+				{
+					// A disabled (muted) track shouldn't be able to keep the global Record button lit,
+					// even with its own record-enable switch on -- mirrors the PLAY check a few lines
+					// below, which already excludes muted tracks via !trackId.trackState.
+					if (trackDisabled)
+						return false;
+					for (size_t tid = 0; (tid + 1) * numParam <= trackInfoParams.size(); ++tid)
+					{
+						if (trackInfoParams[numParam * tid].startPos == trackId)
+						{
+							auto instrument = trackInfoParams[(numParam * tid) + 1].MsgValue.get<std::string>();
+							auto recordState = trackInfoParams[(numParam * tid) + 6].MsgValue.get<bool>();
+							return (instrument != " ") && recordState;
+						}
+					}
+					return false;
+				};
+
 				for (auto scenes = 0; scenes < gSongRef.num_scenes; scenes++)
 				{
 					{
@@ -857,13 +887,14 @@ namespace ui
 
 							if ((scenes == gSongRef.current_scene) /*&& (gSongRef.scene_data[scenes].current_track == i)*/)
 							{
-								if (trackId.instrument != " ")
+								// gSongRef's track_data[].id is 1-based (addTracks()/updateNumOfTracks()
+								// assign starting at 1), but the engine's real Track::trackId (what
+								// paramTrackInfoList reports as startPos) is 0-based
+								// (CSong::reAssignSequentialIdsForTracks starts its count at 0).
+								if (isRecordReadyForTrack(trackId.id - 1, trackId.trackState))
 								{
-									if (trackId.recordState)
-									{
-										enableControlButton(IgniteControlOptions::REC, true);
-										recordSetupCompleted = true;
-									}
+									enableControlButton(IgniteControlOptions::REC, true);
+									recordSetupCompleted = true;
 								}
 							}
 							if ((trackId.outputInstrument != " ") && (trackId.pattern != " "))
