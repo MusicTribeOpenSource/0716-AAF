@@ -3341,9 +3341,43 @@ void SongManager::handleInMidiMessage(const MidiMessage& message, const std::str
 
 	//Currently recording is set to start on first Note ON/Midi CC/ Pitch Bend/Program Change message
 	//Change if condition below to set new start behaviour
+	//Only arm from a port that would actually be recorded to below -- otherwise any MIDI input on
+	//any port (e.g. a shared keyboard, another device sharing the port) incorrectly starts recording.
 	if ((_recordTrigger == true) && (_isRecording == false))
 	{
-		startRecord(message);
+		bool portIsRecordable = false;
+		// Match on (port, channel) together, not port alone: a port can carry several channels
+		// (one controller feeding several tracks, each on its own channel -- the one real multi-track
+		// workflow this matters for), and matching port alone would arm from a channel that belongs
+		// to no recordable track at all.
+		auto msgChannel = message.getChannel() - 1; // JUCE channels are 1-16; 0 (no channel) becomes -1, matching nothing
+		if (_state == SYSTEM_STATE::STEP_RECORD)
+		{
+			portIsRecordable = activeSong->getEditScene() && activeSong->getEditScene()->editTrack &&
+				activeSong->getEditScene()->editTrack->getRxInstrumentPort() == msgPort &&
+				activeSong->getEditScene()->editTrack->getRxInstrumentChannel() == msgChannel;
+		}
+		else if (_state == SYSTEM_STATE::LIVE_RECORD)
+		{
+			// Query the track list directly rather than via playSceneTrackPortMap: that map is only
+			// rebuilt by playSong()/handleMidiSettingChange() and is not guaranteed populated yet here.
+			auto playScene = activeSong->getPlayScene();
+			if (playScene != nullptr)
+			{
+				for (auto& track : playScene->_sceneData->trackList)
+				{
+					if ((track.getRxInstrumentPort() == msgPort) && (track.getRxInstrumentChannel() == msgChannel) &&
+						(track._trackData->trackMute == false))
+					{
+						portIsRecordable = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if (portIsRecordable)
+			startRecord(message);
 	}
 
 	if (_isRecording == true)
@@ -3361,10 +3395,16 @@ void SongManager::handleInMidiMessage(const MidiMessage& message, const std::str
 			(_recordEventFilter & static_cast<uint16_t>(RecordEvents::MidiCC)) && (message.isController())
 			)
 		{
+		// Same (port, channel) matching as the arm-check above: without the channel half, a single
+		// controller feeding several tracks on one port (each on its own channel, or several tracks
+		// on the same channel/instrument) would write every incoming note into every matching track's
+		// pattern instead of just the one(s) actually addressed.
+		auto msgChannel = message.getChannel() - 1;
 		if (_state == SYSTEM_STATE::STEP_RECORD)
 		{
 			if (activeSong->getEditScene() && activeSong->getEditScene()->editTrack &&
-				activeSong->getEditScene()->editTrack->getRxInstrumentPort() == msgPort)
+				activeSong->getEditScene()->editTrack->getRxInstrumentPort() == msgPort &&
+				activeSong->getEditScene()->editTrack->getRxInstrumentChannel() == msgChannel)
 			{
 				activeSong->getEditScene()->editTrack->stepRecordNote(message);
 				patternRecMap[activeSong->getEditScene()->editTrack->getTrackMainPattern()->getName()] = activeSong->getEditScene()->editTrack->getTrackMainPattern();
@@ -3372,15 +3412,23 @@ void SongManager::handleInMidiMessage(const MidiMessage& message, const std::str
 		}
 		else if (_state == SYSTEM_STATE::LIVE_RECORD)
 		{
-			//get track list from current play scene - associated with this port
-			auto trackIdList = playSceneTrackPortMap.equal_range(msgPort);
-			for (auto it = trackIdList.first; it != trackIdList.second; ++it)
+			// Query the track list directly rather than via playSceneTrackPortMap: that map is only
+			// rebuilt by playSong()/handleMidiSettingChange() and can go stale relative to the current
+			// track list (e.g. right after adding/reconfiguring a track), handing out a trackId that no
+			// longer matches a live track and crashing getPlayTrackFromId()'s caller.
+			auto playScene = activeSong->getPlayScene();
+			if (playScene != nullptr)
 			{
-				auto track = getPlayTrackFromId(it->second);
-				if ((track != nullptr) && (track->_trackData->trackMute == false))
+				for (auto& track : playScene->_sceneData->trackList)
 				{
-					track->liveRecord(message);
-					patternRecMap[track->getTrackMainPattern()->getName()] = track->getTrackMainPattern();
+					if ((track.getRxInstrumentPort() == msgPort) && (track.getRxInstrumentChannel() == msgChannel) &&
+						(track._trackData->trackMute == false))
+					{
+						track.liveRecord(message);
+						auto pattern = track.getTrackMainPattern();
+						if (pattern != nullptr)
+							patternRecMap[pattern->getName()] = pattern;
+					}
 				}
 			}
 		}
