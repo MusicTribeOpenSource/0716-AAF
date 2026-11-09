@@ -3234,26 +3234,32 @@ void SongManager::sendTrackValuesAtSceneLevel(void)
 * All USB MIDI and Virtual MIDI port messages will be handled here.
 * DIN MIDI port messages will be first received at the MCU and then routed to IMX
 */
+static std::string midiDeviceMatchName (const juce::String& deviceName); // defined with openMidiInterfaces
+
 void IgniteMidi::handleIncomingMidiMessage (MidiInput* source, const MidiMessage& message)
 {
 	if (_PIgniteEngine != nullptr)		//Don't receive the midi message until IgniteEngine is loaded
 	{
+		// The port lookups below compare against the Ignite port names (f_midi-0 ...); on Windows the
+		// device name carries a trailing device number, so use the same matching name as when the port was opened.
+		const std::string srcPortName = midiDeviceMatchName (source->getName ());
+
 		//check if src message port is enabled for midi remote control
-		if (_PSongMgr->midiRemoteControlEnabled (source->getName ()) == true)
+		if (_PSongMgr->midiRemoteControlEnabled (srcPortName) == true)
 		{
 			_PSongMgr->handleMidiRemoteControlMessage (message);
 		}
-		else if (_PSongMgr->midiTransposeControlEnabled (source->getName ()) == true)
+		else if (_PSongMgr->midiTransposeControlEnabled (srcPortName) == true)
 		{
 			_PSongMgr->handleMidiTransposeControlMessage (message);
 		}
-		else if (_PSongMgr->midiMachineControlEnabled (source->getName ()) == true)
+		else if (_PSongMgr->midiMachineControlEnabled (srcPortName) == true)
 		{
 			_PSongMgr->handleMidiMachineControlMessage (message);
 		}
 		else
 		{
-			_PSongMgr->handleInMidiMessage (message, source->getName ().toStdString ());
+			_PSongMgr->handleInMidiMessage (message, srcPortName);
 		}
 	}
 }
@@ -4845,6 +4851,23 @@ void SongManager::RestoreEngineDataBackup(uint8_t DataFolderId)
 {
 	engine.get_fileHandler()->RestoreBackUP(DataFolderId);
 }
+// The classic Windows MIDI API appends the driver's device number to the name of a port, separated
+// by whitespace (for example the loopMIDI port "f_midi-0" is reported as "f_midi-0 7"). The Ignite
+// port names contain no whitespace, so on Windows a device is identified by the part of its name
+// before the first whitespace character. Other platforms use the name unchanged.
+static std::string midiDeviceMatchName (const juce::String& deviceName)
+{
+	std::string name = deviceName.toStdString ();
+#ifdef _WIN32
+	auto firstSpace = name.find_first_of (" \t");
+	if (firstSpace != std::string::npos)
+	{
+		name.resize (firstSpace);
+	}
+#endif
+	return name;
+}
+
 void SongManager::openMidiInterfaces (void)
 {
 	// Init midi interface list
@@ -4872,18 +4895,19 @@ void SongManager::openMidiInterfaces (void)
 			MidiOutput::openDevice (midiOutDevice.identifier);
 		}
 #endif
+		const std::string outMatchName = midiDeviceMatchName (midiOutDevice.name);
 		if
 		(
-			(midiOutDevice.name == IGNITE_USB_D_MIDI_PORT_1_NAME) ||
-			(midiOutDevice.name == IGNITE_USB_D_MIDI_PORT_2_NAME) ||
-			(midiOutDevice.name == IGNITE_USB_D_MIDI_PORT_3_NAME) ||
-			(midiOutDevice.name == IGNITE_USB_D_MIDI_PORT_4_NAME) ||
-			(midiOutDevice.name == IGNITE_USB_D_MIDI_PORT_5_NAME) ||
-			(midiOutDevice.name == IGNITE_USB_D_MIDI_PORT_6_NAME)
+			(outMatchName == IGNITE_USB_D_MIDI_PORT_1_NAME) ||
+			(outMatchName == IGNITE_USB_D_MIDI_PORT_2_NAME) ||
+			(outMatchName == IGNITE_USB_D_MIDI_PORT_3_NAME) ||
+			(outMatchName == IGNITE_USB_D_MIDI_PORT_4_NAME) ||
+			(outMatchName == IGNITE_USB_D_MIDI_PORT_5_NAME) ||
+			(outMatchName == IGNITE_USB_D_MIDI_PORT_6_NAME)
 		)
 
 		{
-			auto outDeviceHandle = &((midiDevList [getPortIdFromName (midiOutDevice.name.toStdString())]).outputInterface);
+			auto outDeviceHandle = &((midiDevList [getPortIdFromName (outMatchName)]).outputInterface);
 			*outDeviceHandle = MidiOutput::openDevice (midiOutDevice.identifier);
 			if (outDeviceHandle->get () == nullptr)
 			{
@@ -4899,17 +4923,18 @@ void SongManager::openMidiInterfaces (void)
 	{
 		juce::Logger::outputDebugString (midiInDevice.name);
 
+		const std::string inMatchName = midiDeviceMatchName (midiInDevice.name);
 		if
 		(
-			(midiInDevice.name == IGNITE_USB_D_MIDI_PORT_1_NAME) ||
-			(midiInDevice.name == IGNITE_USB_D_MIDI_PORT_2_NAME) ||
-			(midiInDevice.name == IGNITE_USB_D_MIDI_PORT_3_NAME) ||
-			(midiInDevice.name == IGNITE_USB_D_MIDI_PORT_4_NAME) ||
-			(midiInDevice.name == IGNITE_USB_D_MIDI_PORT_5_NAME) ||
-			(midiInDevice.name == IGNITE_USB_D_MIDI_PORT_6_NAME)
+			(inMatchName == IGNITE_USB_D_MIDI_PORT_1_NAME) ||
+			(inMatchName == IGNITE_USB_D_MIDI_PORT_2_NAME) ||
+			(inMatchName == IGNITE_USB_D_MIDI_PORT_3_NAME) ||
+			(inMatchName == IGNITE_USB_D_MIDI_PORT_4_NAME) ||
+			(inMatchName == IGNITE_USB_D_MIDI_PORT_5_NAME) ||
+			(inMatchName == IGNITE_USB_D_MIDI_PORT_6_NAME)
 		)
 		{
-			auto midiDeviceHandle = &(midiDevList [getPortIdFromName (midiInDevice.name.toStdString ())]);
+			auto midiDeviceHandle = &(midiDevList [getPortIdFromName (inMatchName)]);
 			midiDeviceHandle->inputInterface = MidiInput::openDevice (midiInDevice.identifier, (MidiInputCallback*)midiDeviceHandle);
 			if (midiDeviceHandle->inputInterface != nullptr)
 			{
