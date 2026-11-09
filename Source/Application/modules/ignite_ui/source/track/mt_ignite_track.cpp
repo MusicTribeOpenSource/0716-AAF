@@ -317,6 +317,10 @@ namespace ui
 		activeStepId = 1;
 		activeBarId = 1;
 		trackGridPtr->updateTrackButtonState();
+		// updateTrackButtonState() only refreshes each grid button's toggle (on/off) state; it never
+		// repaints the pattern/instrument text labels, so the All Tracks grid kept showing stale
+		// (usually blank) labels for any track switched to/loaded without being interactively edited.
+		trackGridPtr->updateTrackGridData();
 		_pChild->refreshData();
 	}
 
@@ -465,6 +469,11 @@ namespace ui
 				scenePtr->setSceneData(mt::Ignite::sceneDataIndex::TRACKS_ACTIVE, true, false);
 			}
 
+			// Re-run the Track Options panel's own refresh so its Record/Solo disabled-cascade
+			// (keyed off gTrackRef->trackState) actually takes effect here -- this TRACK_STATE case
+			// is reached both from the panel's own toggle (AppTrackOpt::setTrackBtnState) and from the
+			// All Tracks grid's per-track mute button, and neither previously re-ran refreshData().
+			_pChild->refreshData();
 			songComp->isSongSetupComplete();
 			break;
 		case mt::Ignite::trackDataIndex::TRACK_SOLO_MODE:
@@ -474,9 +483,12 @@ namespace ui
 			break;
 		case mt::Ignite::trackDataIndex::TRACK_REC_STATE:
 			gTrackRef->recordState = data;
-			songComp->isSongSetupComplete();
+			// Push the new record-enable to the engine before checking setup-complete:
+			// isSongSetupComplete() now queries the engine's trackRecordEnable live, so
+			// the engine must already have the new value when that check runs.
 			if (!is_internal)
 				_PUiVirtualEngine->setParam((moduleId_t)ModuleName::moduleUI, (moduleId_t)ModuleName::moduleTrack, (paramId_t)TrackParam::paramTrackRecord, data);
+			songComp->isSongSetupComplete();
 			break;
 		default: break;
 		}

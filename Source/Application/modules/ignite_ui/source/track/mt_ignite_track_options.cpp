@@ -296,12 +296,17 @@ namespace ui
 			if (isOutput)
 			{
 				instrumentOutBox.setSelected(index);
-				_pTrack->setTrackData(mt::Ignite::trackDataIndex::TRACK_OUT_INSTR, instrumentList[index], false);
+				// Same display-name/internal-name distinction as the input-instrument case below.
+				_pTrack->setTrackData(mt::Ignite::trackDataIndex::TRACK_OUT_INSTR, gInstruments[index - 1].name, false);
 			}
 			else
 			{
 				instrumentInBox.setSelected(index);
-				_pTrack->setTrackData(mt::Ignite::trackDataIndex::TRACK_INSTR, instrumentList[index], false);
+				// instrumentList[index] is the display name; the engine's setTrackRxInstrument()
+				// looks instruments up by their internal name (gInstruments[].name), not DispName.
+				// Sending the display name here left trackRxInstrumentName blank on the engine side
+				// whenever the two differ.
+				_pTrack->setTrackData(mt::Ignite::trackDataIndex::TRACK_INSTR, gInstruments[index - 1].name, false);
 			}
 			IgniteInstruments::GetAppInstrumentsInstance()->setSelected(index);
 			_PUiVirtualEngine->SetCommand((moduleId_t)ModuleName::moduleUI, (moduleId_t)ModuleName::moduleInstrument, (paramId_t)InstrumentParam::paramSetActiveInstrument, gInstruments[index - 1].name.toStdString());
@@ -698,7 +703,7 @@ namespace ui
 				if (patternList[i] == name)
 					return i;
 			}
-			return 0;
+			return -1; // not found -- index 0 is a real row ("Add New Pattern..."), not a safe default
 			break;
 		case  mt::Ignite::trackDataIndex::TRACK_PFILL:
 			for (auto i = 0; i < pFillList.size(); i++)
@@ -706,7 +711,7 @@ namespace ui
 				if (pFillList[i] == name)
 					return i;
 			}
-			return 0;
+			return -1;
 			break;
 		case mt::Ignite::trackDataIndex::TRACK_INSTR:
 		case mt::Ignite::trackDataIndex::TRACK_OUT_INSTR:
@@ -715,7 +720,7 @@ namespace ui
 				if (instrumentList[i] == name)
 					return i;
 			}
-			return 0;
+			return -1; // not found -- index 0 is a real row ("Add New Instrument..."), not a safe default
 			break;
 		}
 		return -1;
@@ -773,20 +778,23 @@ namespace ui
 				_pTrack->setInstrDataDirtyFlag(false);
 			}
 			pattern_index = getIndexs(mt::Ignite::trackDataIndex::TRACK_PATTERN, gTrackRef->pattern);
-			(pattern_index != -1) ? pattern_index : pattern_index = 0;
 			pfill_index = getIndexs(mt::Ignite::trackDataIndex::TRACK_PFILL, gTrackRef->fillPattern);
-			(pfill_index != -1) ? pfill_index : pfill_index = 0;
 			instr_index = getIndexs(mt::Ignite::trackDataIndex::TRACK_INSTR, gTrackRef->instrument);
-			(instr_index != -1) ? instr_index : instr_index = 0;
 			instr_out_index = getIndexs(mt::Ignite::trackDataIndex::TRACK_OUT_INSTR, gTrackRef->outputInstrument);
-			(instr_out_index != -1) ? instr_out_index : instr_out_index = 0;
 
 			header.setText(gTrackRef->name, NotificationType::dontSendNotification);
-			patternBox.setSelected(pattern_index);
-			pFillBox.setSelected(pfill_index);
-			instrumentInBox.setSelected(instr_index);
-			instrumentOutBox.setSelected(instr_out_index);
-			if (instr_out_index)
+			// -1 means the rebuilt list didn't (yet) contain the track's actual assignment -- leave the
+			// widget showing what it already shows rather than forcing it to row 0, which is a real,
+			// actionable "Add New..." entry, not a safe "nothing selected" default.
+			if (pattern_index != -1)
+				patternBox.setSelected(pattern_index);
+			if (pfill_index != -1)
+				pFillBox.setSelected(pfill_index);
+			if (instr_index != -1)
+				instrumentInBox.setSelected(instr_index);
+			if (instr_out_index != -1)
+				instrumentOutBox.setSelected(instr_out_index);
+			if (instr_out_index > 0)
 			{
 				trackValueBtn.setEnabled(true);
 				trackValueBtn.setHelpText("");
@@ -823,6 +831,17 @@ namespace ui
 			else
 			{
 				trackMuteBtn.setEnabled(false);
+				trackRecBtn.setEnabled(false);
+				soloMode.setEnabled(false);
+			}
+
+			// A disabled track still allows configuring it (pattern, fill pattern, in/out instrument,
+			// CC assignment) -- that's a defensible, deliberate allowance, not a bug. Record and Solo
+			// are the two that are genuinely ambiguous on a disabled track (does recording happen on a
+			// disabled track? does soloing one?), so those two alone follow trackState. trackMuteBtn
+			// itself (the enable/disable toggle) stays enabled so the track can be re-enabled.
+			if (gTrackRef->trackState)
+			{
 				trackRecBtn.setEnabled(false);
 				soloMode.setEnabled(false);
 			}
