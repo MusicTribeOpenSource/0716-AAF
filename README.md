@@ -31,6 +31,58 @@ Buildroot tree for the Linux image. Material that could not be redistributed was
 parts need your own replacements before they build (see the README in each folder). There is no
 official firmware release here yet.
 
+## Windows (community, unofficial)
+
+A community contributor has built and tested this natively on Windows (Visual Studio 2026 Insiders,
+MSVC, CMake/Ninja), and found and fixed the set of issues needed to get there. We believe this set now
+provides a complete Windows emulator for the sequencer's MIDI and SoundFont-playback capabilities —
+song/scene/track/pattern workflow, step and live recording with input monitoring, internal and external
+MIDI output, and Settings > Audition.
+
+This doesn't cover CV/Gate, WiFi, USB Host device specifics, or the front-panel-knob-driven internal
+effects chain (filter/EQ/reverb/chorus per track) — those need physical hardware or a front-panel
+emulator to exercise, and haven't been tested here. Each fix below was individually tested on its own
+branch; the convenience branch mentioned below was verified to build clean and launch, not separately
+re-run through every combined scenario.
+
+**Posted/merged — Windows build, startup, and MIDI routing:**
+
+| PR | What |
+|---|---|
+| #5 | Start without internal sounds when the SoundFont is missing |
+| #10 | MSVC warnings + missing return that stop a Release build |
+| #12 | Outgoing MIDI device-name matching (the whitespace-suffix bug) |
+| #15 | CMake assets for all build configs + a record-arm crash (`Step` never stored its `Pattern`) |
+| #16 | Configurable SoundFont path (draft, stacked on #5) |
+| #18 | Soft Thru per-port config index mismatch |
+| #21 | Audition preset coverage for all 24 real ports |
+| #23 | Record button stuck after Stop during Auditioning |
+| #30 | Incoming MIDI device-name matching — the input-side twin of #12, and the actual cause of Settings > Audition being silent |
+
+**Sequencer-specific fixes**, found extending past "builds and sends MIDI" into the actual sequencing workflow:
+
+| PR | What |
+|---|---|
+| #26 | Recording matched by MIDI port only, not channel — one input could write into every track sharing a port; also a crash recording into multiple patterns from a stale port→track cache |
+| #28 | Record button never becoming enabled; instrument picker not reaching the engine; stale labels in the All Tracks grid |
+| #32 | No live monitor of incoming notes while recording (standard DAW "input monitoring") |
+
+**Dependency order**, for anyone applying these individually: `#10 → #12 → #30` (stacked), `#5 → #16`
+(stacked), `#15`, `#18`, `#21`, `#23` independent of the above, then `#26`, `#28`, `#32` independent of
+each other and of everything above.
+
+**For convenience**, a branch with all of the above stacked and verified building clean from scratch:
+[`windows-build-complete-2026-11-09`](https://github.com/JPD-Music-Tooling/0716-AAF/tree/windows-build-complete-2026-11-09)
+(not a PR — just a working checkout, since the individual PRs above are what's up for review).
+
+This effort is aimed at making the main UI-driven sequencer functional on Windows for development
+purposes; the audio/hardware-adjacent work (SoundFont handling, MIDI routing) exists only in service of
+that.
+
+DIN MIDI remains open and unaddressed — see [issue #14](https://github.com/MusicTribeOpenSource/0716-AAF/issues/14).
+
+Full discussion: [issue #11](https://github.com/MusicTribeOpenSource/0716-AAF/issues/11).
+
 ## Front panel
 
 - Touchscreen
