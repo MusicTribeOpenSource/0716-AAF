@@ -325,6 +325,7 @@ namespace Ignite
 		void initTrackRecordSetting(void);
 		void stepRecordNote(const MidiMessage& message);
 		void liveRecord(const MidiMessage& message);
+		void monitorNote(const MidiMessage& message);
 		void AuditioningTrackInit(void);
 		void AuditioningTrackSetPreset(int presetindex);
 		void AuditioningTrackClear(void);

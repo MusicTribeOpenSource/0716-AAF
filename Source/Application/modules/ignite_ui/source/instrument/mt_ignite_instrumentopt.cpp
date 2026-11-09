@@ -49,14 +49,14 @@ namespace ui
 		xposeButton.setDisableImage("toggle-xpose-disabled.png");
 		xposeButton.sethoverImages("toggle-xpose-hover.png", "toggle-xpose-active-hover.png", "toggle-xpose-disabled-1.png");
 
-		/*addAndMakeVisible(edtrkButton);
+		addAndMakeVisible(edtrkButton);
 		edtrkButton.addListener(this);
 		edtrkButton.setClickingTogglesState(true);
 		edtrkButton.setToggleState(false, dontSendNotification);
 		edtrkButton.setComponentID("edtrkComp");
 		edtrkButton.setDisableImage("toggle-edtrk-disabled.png");
 		edtrkButton.sethoverImages("toggle-edtrk-hover.png", "toggle-edtrk-active-hover.png", "toggle-edtrk-disabled-1.png");
-		edtrkButton.setLookAndFeel(ImageButtonLookandFeel::getLnf());*/
+		edtrkButton.setLookAndFeel(ImageButtonLookandFeel::getLnf());
 
 		addAndMakeVisible(ftsButton);
 		ftsButton.addListener(this);
@@ -119,13 +119,13 @@ namespace ui
 		InstrBox_colume2.items.add(FlexItem(presetPgm).withMargin({ 0,8,8,0 }).withFlex(1));
 		InstrBox_colume2.items.add(FlexItem(xposeButton).withMargin({ 0,8,8,0 }).withFlex(1));
 
+		// This instrumentsDataIndex (3rd row) previously duplicated widgets already placed in colume1/2
+		// and was entirely commented out; repurposed here for just the newly-activated edtrkButton.
+		InstrBox_colume3.items.add(FlexItem(edtrkButton).withMargin({ 0,8,8,0 }).withFlex(1));
+
 		/*InstrBox_colume2.items.add(FlexItem(pgmChangeButton).withMargin({ 0,8,8,0 }).withFlex(1));
 		InstrBox_colume2.items.add(FlexItem(cc0Button).withMargin({ 0,8,8,0 }).withFlex(1));
 		InstrBox_colume2.items.add(FlexItem(cc32Button).withMargin({ 0,8,8,0 }).withFlex(1));
-
-		InstrBox_colume3.items.add(FlexItem(intSoundButton).withMargin({ 0,8,8,0 }).withFlex(1));
-		InstrBox_colume3.items.add(FlexItem(presetPgm).withMargin({ 0,8,8,0 }).withFlex(1));
-		InstrBox_colume3.items.add(FlexItem(edtrkButton).withMargin({ 0,8,8,0 }).withFlex(1));
 
 		InstrBox_colume4.items.add(FlexItem(ftsButton).withMargin({ 0,8,8,0 }).withFlex(1));
 		InstrBox_colume4.items.add(FlexItem(xposeButton).withMargin({ 0,8,8,0 }).withFlex(1));*/
@@ -426,8 +426,8 @@ namespace ui
 	{
 		InstrBox_colume1.performLayout(ui::Rectangle(0, 10, 774, 108));
 		InstrBox_colume2.performLayout(ui::Rectangle(0, 118, 774, 108));
-		/*InstrBox_colume3.performLayout(ui::Rectangle(0, 220, 774, 108));
-		InstrBox_colume4.performLayout(ui::Rectangle(0, 322, 516, 108));*/
+		InstrBox_colume3.performLayout(ui::Rectangle(0, 226, 774, 108));
+		/*InstrBox_colume4.performLayout(ui::Rectangle(0, 322, 516, 108));*/
 	}
 
 	void IgniteInstrumentOpt::updateLableText(mt::Ignite::instrumentsDataIndex item_id, bool state)
@@ -440,9 +440,9 @@ namespace ui
 		case mt::Ignite::instrumentsDataIndex::INSTR_CHANNEL:
 			state ? midiChannel.setName("CHANNEL*") : midiChannel.setName("CHANNEL");
 			break;
-		/*case mt::Ignite::instrumentsDataIndex::INSTR_EDTRK:
-			state ? edtrkButton.setButtonText("EDTRK THRU*") : edtrkButton.setButtonText("EDTRK THRU");
-			break;*/
+		case mt::Ignite::instrumentsDataIndex::INSTR_EDTRK:
+			state ? edtrkButton.setButtonText("Record Monitor*") : edtrkButton.setButtonText("Record Monitor");
+			break;
 		case mt::Ignite::instrumentsDataIndex::INSTR_FTS:
 			state ? ftsButton.setButtonText("FTS*") : ftsButton.setButtonText("FTS");
 			break;
@@ -462,7 +462,7 @@ namespace ui
 	{
 		state ? midiPort.setTitleText("MIDI PORT*") : midiPort.setTitleText("MIDI PORT");
 		state ? midiChannel.setName("CHANNEL*") : midiChannel.setName("CHANNEL");
-		//state ? edtrkButton.setButtonText("EDTRK THRU*") : edtrkButton.setButtonText("EDTRK THRU");
+		state ? edtrkButton.setButtonText("Record Monitor*") : edtrkButton.setButtonText("Record Monitor");
 		state ? ftsButton.setButtonText("FTS*") : ftsButton.setButtonText("FTS");
 		//state ? pgmButton.setButtonText("PRE SEND PGM*") : pgmButton.setButtonText("PRE SEND PGM");
 		state ? xposeButton.setButtonText("XPOSE*") : xposeButton.setButtonText("XPOSE");
@@ -483,11 +483,11 @@ namespace ui
 			instrPtr->setInstrumentData(mt::Ignite::instrumentsDataIndex::INSTR_XPOSE, xposeButton.getToggleState(), false);
 
 		}
-		/*else if (buttonThatWasClicked == &edtrkButton)
+		else if (buttonThatWasClicked == &edtrkButton)
 		{
 			instrPtr->setInstrumentData(mt::Ignite::instrumentsDataIndex::INSTR_EDTRK, edtrkButton.getToggleState(), false);
 
-		}*/
+		}
 		else if (buttonThatWasClicked == &ftsButton)
 		{
 			instrPtr->setInstrumentData(mt::Ignite::instrumentsDataIndex::INSTR_FTS, ftsButton.getToggleState(), false);
@@ -593,7 +593,7 @@ namespace ui
 		auto channel = (int)instrPtr->getInstrumentData(mt::Ignite::instrumentsDataIndex::INSTR_CHANNEL);
 		((int)channel > 0) ? midiChannel.setText((String)channel, dontSendNotification) : midiChannel.setText("---", dontSendNotification);
 
-		//edtrkButton.setToggleState((bool)instrPtr->getInstrumentData(mt::Ignite::instrumentsDataIndex::INSTR_EDTRK), dontSendNotification);
+		edtrkButton.setToggleState((bool)instrPtr->getInstrumentData(mt::Ignite::instrumentsDataIndex::INSTR_EDTRK), dontSendNotification);
 		xposeButton.setToggleState((bool)instrPtr->getInstrumentData(mt::Ignite::instrumentsDataIndex::INSTR_XPOSE), dontSendNotification);
 		ftsButton.setToggleState((bool)instrPtr->getInstrumentData(mt::Ignite::instrumentsDataIndex::INSTR_FTS), dontSendNotification);
 

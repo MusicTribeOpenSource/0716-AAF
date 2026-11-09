@@ -3367,6 +3367,7 @@ void SongManager::handleInMidiMessage(const MidiMessage& message, const std::str
 				activeSong->getEditScene()->editTrack->getRxInstrumentPort() == msgPort)
 			{
 				activeSong->getEditScene()->editTrack->stepRecordNote(message);
+				activeSong->getEditScene()->editTrack->monitorNote(message);
 				patternRecMap[activeSong->getEditScene()->editTrack->getTrackMainPattern()->getName()] = activeSong->getEditScene()->editTrack->getTrackMainPattern();
 			}
 		}
@@ -3380,6 +3381,7 @@ void SongManager::handleInMidiMessage(const MidiMessage& message, const std::str
 				if ((track != nullptr) && (track->_trackData->trackMute == false))
 				{
 					track->liveRecord(message);
+					track->monitorNote(message);
 					patternRecMap[track->getTrackMainPattern()->getName()] = track->getTrackMainPattern();
 				}
 			}

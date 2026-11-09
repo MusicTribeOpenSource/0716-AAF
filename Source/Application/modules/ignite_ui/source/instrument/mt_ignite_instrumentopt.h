@@ -94,7 +94,7 @@ namespace ui
 
 		CommonKey instrName{ "" };
 		CommonImageButton xposeButton{ "XPOSE","toggle-xpose-default.png","toggle-xpose-active.png","toggle-xpose-hover.png" };
-		//CommonImageButton edtrkButton{ "EDTRK THRU","toggle-edtrk-default.png","toggle-edtrk-active.png","toggle-edtrk-hover.png"};
+		CommonImageButton edtrkButton{ "Record Monitor","toggle-edtrk-default.png","toggle-edtrk-active.png","toggle-edtrk-hover.png"};
 		CommonImageButton ftsButton{ "FTS","toggle-inst-fts-default.png","toggle-inst-fts-active.png","toggle-inst-fts-hover.png" };
 		//CommonImageButton pgmButton{ "PRE SEND PGM:Off","toggle-presendpgm-default.png","toggle-presendpgm-active.png","toggle-presendpgm-hover.png" };
 		CommonImageButton intSoundButton{ "INTERNAL SOUND:On","toggle-internalsound-default.png","toggle-internalsound-active.png","toggle-internalsound-hover.png" };
