@@ -3202,6 +3202,30 @@ void Track::liveRecord(const MidiMessage& message)
 	}
 }
 
+// Live-monitor an incoming note while recording, through this track's own output instrument --
+// deliberately the exact same sound-producing call (SongManager::sendMidiMessage, internal or
+// external) that playStepEvents() uses for normal playback, not a separate mechanism. Gated by
+// the output instrument's own "monitor" setting (Instrument::editTrackThruStatus / "EDTRK THRU"
+// in the UI), since whether a given sound source needs Ignite to actively trigger it (an internal
+// patch) or already sounds on its own (external gear with its own local monitoring) is a property
+// of that instrument, not of the track.
+void Track::monitorNote(const MidiMessage& message)
+{
+	Instrument* instrumentToPlay = getTrackTxInstrument();
+	if ((instrumentToPlay == nullptr) || (instrumentToPlay->getEditTrackThruStatus() == false))
+		return;
+
+	MidiMessage msgToSend;
+	if (message.isNoteOn())
+		msgToSend = SongManager::noteOn(_txMidiChannel, message.getNoteNumber(), message.getVelocity());
+	else if (message.isNoteOff())
+		msgToSend = SongManager::noteOff(_txMidiChannel, message.getNoteNumber(), message.getVelocity());
+	else
+		return;
+
+	_songManager->sendMidiMessage(msgToSend, _txMidiPort, instrumentToPlay->getInternalSound(), this);
+}
+
 void Track::setTrackRxMidiPortAndChannel(void)
 {
 	Instrument* rxInstrument = getTrackRxInstrument();
